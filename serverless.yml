@@ -1,0 +1,182 @@
+service: brand-onboarding-apis 
+package:
+  individually: false
+  httpApi:
+    cors: true
+
+plugins:
+  - serverless-auto-swagger
+  - serverless-offline
+  - serverless-deployment-bucket
+  - serverless-webpack
+provider:
+  name: aws
+  runtime: nodejs14.x
+  stage: ${opt:stage, 'prod'}
+  region: ap-south-1
+  cfLogs: true
+  logRetentionInDays: 1
+  profile: serverless-admin-prod
+  deploymentBucket:
+    name: brand-onboarding-apis-${self:provider.stage}
+    serverSideEncryption: AES256
+  environment:
+    BRAND_TABLE: ${self:custom.BrandTable.name}
+    BRAND_BUCKET_NAME: ${self:custom.BrandBucket.name}
+    MIB_AWS_ACCESS_KEY_ID: AKIA22JQ7XLDFR7FGQXO
+    MIB_AWS_SECRET_ACCESS_KEY: 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
+    MIB_STAGE: ${opt:stage, 'prod'}
+    SLS_DEBUG: "*"
+    USER_TABLE: User-${self:provider.stage}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:Query
+            - dynamodb:Scan
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+            - dynamodb:PartiQLSelect
+            - dynamodb:PartiQLUpdate 
+          Resource: !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/Brand-${self:provider.stage}
+        - Effect: Allow
+          Action:
+            - s3:PutObject
+          Resource: arn:aws:s3:::${self:custom.BrandBucket.name}/*
+
+resources:
+  Resources:
+    BrandTable: ${file(infra/resources/dynamodb.yml):BrandTable} 
+    BrandBucketPolicy: ${file(infra/resources/s3.yml):BrandBucketPolicy}
+
+functions:
+  brandHealthCheck:
+    handler: src/handlers/health.handler
+    events:
+      - http:
+          method: GET
+          path: /health 
+  getBrand:
+    handler: src/handlers/getBrand.handler
+    events:
+      - http:
+          method: GET
+          path: profile/{emailId}  
+          headerParameters:
+            User-Id: string
+            Source: string
+          pathParameters:
+            emailId:
+              required: true
+              type: string
+              description: "brand's primary email id"
+          responses:
+            200:
+              description: "Search result" 
+              bodyType: "BrandModel"
+            404: 
+              description: 'Product Not found'
+              bodyType: "ResponseType"
+            401: 
+              description: 'Unauthorized'
+              bodyType: "ResponseType"
+            502: 
+              description: 'server error'
+              bodyType: "ResponseType"
+            400: 
+              description: "Bad Request"
+              bodyType: "ResponseType"
+  register-brand:
+    handler: src/handlers/registerBrand.handler
+    events:
+      - http:
+          method: POST
+          path: register
+          swaggerTags: 
+            - For Brand Registration
+          bodyType: "BrandModel"
+          headerParameters:
+            User-Id: string
+            Source: string 
+          responses:
+            200:
+              description: "Response" 
+              bodyType: "BrandRegistrationModel" 
+            502: 
+              description: 'server error'
+              bodyType: "ResponseType"
+            400: 
+              description: "Bad Request"
+              bodyType: "ResponseType"
+  register-ojt:
+    handler: src/handlers/postOjt.handler
+    events:
+      - http:
+          method: POST
+          path: ojt/register/ 
+  update-bank-details:
+    handler: src/handlers/updateBankDetails.handler
+    events:
+      - http:
+          method: PATCH
+          path: bank-details/{EmailId} 
+  update-contact-info:
+    handler: src/handlers/updateContactInfo.handler
+    events:
+      - http:
+          method: PATCH
+          path: contact-info/{EmailId} 
+  update-business-details:
+    handler: src/handlers/updateBusinessDetails.handler
+    events:
+      - http:
+          method: PATCH
+          path: business-details/{EmailId} 
+  update-documents:
+    handler: src/handlers/updateDocuments.handler
+    events:
+      - http:
+          method: PATCH
+          path: update-documents/{EmailId} 
+  update-address-details:
+    handler: src/handlers/updateAddressDetails.handler
+    events:
+      - http:
+          method: PATCH
+          path: update-address-details/{EmailId} 
+
+custom:
+  stage: dev
+  autoSwagger:
+    typefiles:
+      -  "./src/types/api-types.d.ts"
+    host: "https://api.dev.migobucks.com"
+    basePath: '/authorizer/'
+    version: "1.0.0"
+    useStage: true
+
+  webpack:
+    keepOutputDirectory: true
+    includeModules:
+      packagePath: './package.json'
+    webpackConfig: 'webpack.config.js'
+    packager: 'npm'
+    excludeFiles: src/**/*.test.js
+
+  domains:
+    dev: api.dev.migobucks.com
+  BrandTable:
+    name: !Ref BrandTable
+    arn: !GetAtt BrandTable.Arn
+  BrandBucket:
+    name: brand-onboarding-apis-${self:provider.stage}
+  # customDomain:
+  #   domainName: ${self:custom.domains.${self:custom.stage}}
+  #   basePath: 'brand'
+  #   stage: dev
+  #   createRoute53Record: true
+  bundle:
+    linting: false
