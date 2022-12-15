@@ -23,8 +23,8 @@ provider:
   environment:
     BRAND_TABLE: ${self:custom.BrandTable.name}
     BRAND_BUCKET_NAME: ${self:custom.BrandBucket.name}
-    MIB_AWS_ACCESS_KEY_ID: AKIA22JQ7XLDFR7FGQXO
-    MIB_AWS_SECRET_ACCESS_KEY: NohqPeEVWDEh6Eg7iXN70X2/kZ5jYeQ9OcTUMOEe
+    MIB_AWS_ACCESS_KEY_ID:  dummy
+    MIB_AWS_SECRET_ACCESS_KEY: dummy
     MIB_STAGE: ${opt:stage, 'prod'}
     SLS_DEBUG: "*"
     USER_TABLE: User-${self:provider.stage}
